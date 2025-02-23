@@ -1,5 +1,5 @@
-'''
---- Day 9: Disk Fragmenter ---
+"""
+--- Part One ---
 Another push of the button leaves you in the familiar hallways of some friendly amphipods! Good thing you each somehow got your own personal mini submarine. The Historians jet away in search of the Chief, mostly by driving directly into walls.
 
 While The Historians quickly figure out how to pilot these things, you notice an amphipod in the corner struggling with his computer. He's trying to make more contiguous free space by compacting all of the files, but his program isn't working; you offer to help.
@@ -45,37 +45,37 @@ The final step of this file-compacting process is to update the filesystem check
 Continuing the first example, the first few blocks' position multiplied by its file ID number are 0 * 0 = 0, 1 * 0 = 0, 2 * 9 = 18, 3 * 9 = 27, 4 * 8 = 32, and so on. In this example, the checksum is the sum of these, 1928.
 
 Compact the amphipod's hard drive using the process he requested. What is the resulting filesystem checksum?
-'''
+"""
 
 with open("input.txt") as file:
-    s = file.read().strip()
-    arr = []
-    flag = True
-    fid = 0
-    for ch in s:
-        n = int(ch)
-        if flag:
-            arr.extend([fid] * n)
-            fid += 1
+    input_data = file.read().strip()
+    disk_map = []
+    is_file = True
+    file_id = 0
+    for data in input_data:
+        n = int(data)
+        if is_file:
+            disk_map.extend([file_id] * n)
+            file_id += 1
         else:
-            arr.extend(["."] * n)
-        flag = not flag
+            disk_map.extend(["."] * n)
+        is_file = not is_file
 
     while True:
         try:
-            free_idx = arr.index(".")
+            free_idx = disk_map.index(".")
         except ValueError:
             break
         file_idx = None
-        for i in range(len(arr) - 1, free_idx, -1):
-            if arr[i] != ".":
+        for i in range(len(disk_map) - 1, free_idx, -1):
+            if disk_map[i] != ".":
                 file_idx = i
                 break
         if file_idx is None or file_idx <= free_idx:
             break
-        arr[free_idx] = arr[file_idx]
-        arr[file_idx] = "."
+        disk_map[free_idx] = disk_map[file_idx]
+        disk_map[file_idx] = "."
 
-checksum = sum(i * int(x) for i, x in enumerate(arr) if x != ".")
+checksum = sum(i * int(x) for i, x in enumerate(disk_map) if x != ".")
 
 print(checksum)
