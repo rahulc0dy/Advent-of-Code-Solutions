@@ -1,3 +1,5 @@
+# https://adventofcode.com/2024/day/15#part2
+
 with open("input.txt") as f:
     lines = f.read().splitlines()
 grid_lines = []
