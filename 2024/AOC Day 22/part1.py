@@ -1,4 +1,4 @@
-# https://adventofcode.com/2024/day/22#part2
+# https://adventofcode.com/2024/day/22
 
 MOD = 16777216
 ITERATIONS = 2000

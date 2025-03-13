@@ -1,3 +1,5 @@
+# https://adventofcode.com/2024/day/22#part2
+
 MOD = 16777216
 
 
