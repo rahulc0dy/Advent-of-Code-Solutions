@@ -1,120 +1,153 @@
-import sys, itertools
+import itertools, random, re
+
+with open("input.txt") as f:
+    lines = [line.strip() for line in f if line.strip()]
+initial_assignments = {}
+gates = []
+for line in lines:
+    if ":" in line and "->" not in line:
+        parts = line.split(":")
+        wire = parts[0].strip()
+        val = int(parts[1].strip())
+        initial_assignments[wire] = val
+    elif "->" in line:
+        lhs, out_wire = line.split("->")
+        out_wire = out_wire.strip()
+        tokens = lhs.strip().split()
+        in1 = tokens[0]
+        op = tokens[1]
+        in2 = tokens[2]
+        gates.append({"op": op, "in1": in1, "in2": in2, "out": out_wire})
+wire_to_gates = {}
+for i, gate in enumerate(gates):
+    for w in [gate["in1"], gate["in2"]]:
+        wire_to_gates.setdefault(w, []).append(i)
+wire_produced_by = {}
+for i, gate in enumerate(gates):
+    wire_produced_by[gate["out"]] = i
 
 
-def parse_input(filename):
-    with open(filename) as f:
-        lines = [l.strip() for l in f if l.strip()]
-    init = {}
-    gates = []
-    for l in lines:
-        if "->" in l:
-            left, out = l.split(" -> ")
-            parts = left.split()
-            gates.append((parts[0], parts[1], parts[2], out))
+def simulate(swaps, input_assignment):
+    wires = {}
+    for w, val in initial_assignments.items():
+        if w.startswith("x") or w.startswith("y"):
+            if w in input_assignment:
+                wires[w] = input_assignment[w]
+            else:
+                wires[w] = val
         else:
-            w, v = l.split(": ")
-            init[w] = int(v)
-    return init, gates
-
-
-def simulate(gates, init):
-    wires = dict(init)
-    pending = set(range(len(gates)))
-    while pending:
-        prog = False
-        for i in list(pending):
-            a, op, b, out = gates[i]
-            if a in wires and b in wires:
-                if op == "AND":
-                    wires[out] = wires[a] & wires[b]
-                elif op == "OR":
-                    wires[out] = wires[a] | wires[b]
-                elif op == "XOR":
-                    wires[out] = wires[a] ^ wires[b]
-                pending.remove(i)
-                prog = True
-        if not prog:
-            break
+            wires[w] = val
+    computed = [False] * len(gates)
+    changed = True
+    while changed:
+        changed = False
+        for i, gate in enumerate(gates):
+            if computed[i]:
+                continue
+            if gate["in1"] in wires and gate["in2"] in wires:
+                a = wires[gate["in1"]]
+                b = wires[gate["in2"]]
+                if gate["op"] == "AND":
+                    res = a & b
+                elif gate["op"] == "OR":
+                    res = a | b
+                elif gate["op"] == "XOR":
+                    res = a ^ b
+                else:
+                    raise ValueError("Unknown op: " + gate["op"])
+                effective_out = gate["out"]
+                if i in swaps:
+                    partner = swaps[i]
+                    effective_out = gates[partner]["out"]
+                if effective_out not in wires or wires[effective_out] != res:
+                    wires[effective_out] = res
+                    changed = True
+                computed[i] = True
+        computed = [False] * len(gates)
     return wires
 
 
 def get_number(prefix, wires):
-    lst = []
-    for k, v in wires.items():
-        if k.startswith(prefix):
-            lst.append((int(k[1:]), v))
-    if not lst:
+    bits = []
+    for w, val in wires.items():
+        if w.startswith(prefix):
+            idx = int(w[len(prefix) :])
+            bits.append((idx, val))
+    if not bits:
         return 0
-    lst.sort(key=lambda x: x[0])
-    bits = "".join(str(v) for _, v in lst[::-1])
-    return int(bits, 2)
+    bits.sort(key=lambda x: x[0])
+    return sum(val * (2**idx) for idx, val in bits)
 
 
-init, orig_gates = parse_input("input.txt")
-wires_orig = simulate(orig_gates, init)
-expected = get_number("x", init) + get_number("y", init)
-out_to_gate = {}
-for i, g in enumerate(orig_gates):
-    out_to_gate[g[3]] = i
-cand = set()
-stack = []
-wires_sim = simulate(orig_gates, init)
-for w in wires_sim:
-    if w.startswith("z") and w in out_to_gate:
-        stack.append(out_to_gate[w])
-while stack:
-    i = stack.pop()
-    if i in cand:
-        continue
-    cand.add(i)
-    a, op, b, out = orig_gates[i]
-    if a in out_to_gate:
-        stack.append(out_to_gate[a])
-    if b in out_to_gate:
-        stack.append(out_to_gate[b])
-cand = sorted(list(cand))
+def test_swaps(swaps, tests):
+    for assign in tests:
+        wires = simulate(swaps, assign)
+        X = get_number("x", wires)
+        Y = get_number("y", wires)
+        Z = get_number("z", wires)
+        if Z != X + Y:
+            return False
+    return True
 
 
-def apply_swaps(pairs, gates):
-    new = list(gates)
-    for i, j in pairs:
-        out_i = new[i][3]
-        out_j = new[j][3]
-        new[i] = (new[i][0], new[i][1], new[i][2], out_j)
-        new[j] = (new[j][0], new[j][1], new[j][2], out_i)
-    return new
+def get_input_wires(prefix):
+    return sorted(
+        [w for w in initial_assignments if w.startswith(prefix)],
+        key=lambda w: int(w[len(prefix) :]),
+    )
 
 
-found = False
+x_wires = get_input_wires("x")
+y_wires = get_input_wires("y")
+test1 = {
+    w: initial_assignments[w] for w in (x_wires + y_wires) if w in initial_assignments
+}
+tests = [test1]
+for _ in range(10):
+    assign = {}
+    for w in x_wires:
+        assign[w] = random.randint(0, 1)
+    for w in y_wires:
+        assign[w] = random.randint(0, 1)
+    tests.append(assign)
+candidate_gates = {
+    i for i, gate in enumerate(gates) if gate["out"].lower().startswith("z")
+}
+candidate_list = list(candidate_gates)
+print("Found", len(candidate_list), "candidate gates.")
 
 
-def backtrack(start, used, pairs):
-    global found
-    if found:
-        return
-    if len(pairs) == 4:
-        new_g = apply_swaps(pairs, orig_gates)
-        wires = simulate(new_g, init)
-        if get_number("z", wires) == expected:
-            sw = []
-            for i, j in pairs:
-                sw.append(orig_gates[i][3])
-                sw.append(orig_gates[j][3])
-            sw = sorted(sw)
-            print(",".join(sw))
-            found = True
-            sys.exit(0)
-        return
-    for i in range(start, len(cand)):
-        if cand[i] in used:
+def search_swaps(candidate_list, used, start, chosen):
+    if len(chosen) == 4:
+        swaps = {}
+        for a, b in chosen:
+            swaps[a] = b
+            swaps[b] = a
+        if test_swaps(swaps, tests):
+            swap_wires = []
+            for a, b in chosen:
+                swap_wires.append(gates[a]["out"])
+                swap_wires.append(gates[b]["out"])
+            swap_wires = sorted(swap_wires)
+            result = ",".join(swap_wires)
+            print("Solution found:")
+            print(result)
+            return True
+        return False
+    for i in range(start, len(candidate_list)):
+        a = candidate_list[i]
+        if a in used:
             continue
-        for j in range(i + 1, len(cand)):
-            if cand[j] in used:
+        for j in range(i + 1, len(candidate_list)):
+            b = candidate_list[j]
+            if b in used:
                 continue
-            new_used = used | {cand[i], cand[j]}
-            backtrack(i + 1, new_used, pairs + [(cand[i], cand[j])])
+            new_used = used | {a, b}
+            new_chosen = chosen + [(a, b)]
+            if search_swaps(candidate_list, new_used, i + 1, new_chosen):
+                return True
+    return False
 
 
-backtrack(0, set(), [])
-if not found:
-    print("No solution found")
+if not search_swaps(candidate_list, set(), 0, []):
+    print("No valid swap configuration found.")
