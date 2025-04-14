@@ -33,7 +33,6 @@ def flood_fill(grid, start_r, start_c, visited):
 
 
 def count_sides(region):
-    # Group cells by row and column for easier processing
     cells_by_row = {}
     cells_by_col = {}
 
@@ -41,12 +40,10 @@ def count_sides(region):
         cells_by_row.setdefault(r, []).append(c)
         cells_by_col.setdefault(c, []).append(r)
 
-    # Count horizontal sides (each continuous segment on a row)
     horizontal_sides = 0
     for r, cols in cells_by_row.items():
         cols.sort()
 
-        # Group consecutive columns
         groups = []
         current_group = [cols[0]]
 
@@ -59,15 +56,12 @@ def count_sides(region):
 
         groups.append(current_group)
 
-        # Each group creates 2 horizontal sides (top and bottom)
         horizontal_sides += len(groups) * 2
 
-    # Count vertical sides (each continuous segment on a column)
     vertical_sides = 0
     for c, rows in cells_by_col.items():
         rows.sort()
 
-        # Group consecutive rows
         groups = []
         current_group = [rows[0]]
 
@@ -80,15 +74,7 @@ def count_sides(region):
 
         groups.append(current_group)
 
-        # Each group creates 2 vertical sides (left and right)
         vertical_sides += len(groups) * 2
-
-    # Adjust for double-counting corners
-    # Each internal corner is counted twice, and we need to count it only once
-    # This adjustment is complex and depends on the specific shapes
-    # For a rectangle, we have 4 corners, each counted twice (8 total)
-    # So total sides would be 4 (2 horizontal + 2 vertical)
-    # Since horizontal_sides + vertical_sides gives us 8, we need to divide by 2
 
     return (horizontal_sides + vertical_sides) // 2
 
